@@ -1,3 +1,6 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 import json
 import os
 import random
@@ -27,7 +30,9 @@ class Quiz:
 
     def save_to_file(self, filename):
         try:
-            with open(filename, 'w') as file:
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            data_file_path = os.path.join(script_dir, filename)
+            with open(data_file_path, 'w') as file:
                 json.dump(self.questions, file)
             print(f"Quiz został zapisany do pliku {filename}.")
         except IOError as e:
@@ -39,7 +44,9 @@ class Quiz:
             print(f"Nie można otworzyć pliku {filename}, ponieważ nie istnieje.")
             return False
         try:
-            with open(filename, 'r') as file:
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            data_file_path = os.path.join(script_dir, filename)
+            with open(data_file_path, 'r') as file:
                 self.questions = json.load(file)
             return True
         except IOError as e:
@@ -174,6 +181,11 @@ def main():
     args = parse_args()
 
     quiz = Quiz()
+
+    if args["file"]:
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        data_file_path = os.path.join(script_dir, args["file"])
+        args["file"] = data_file_path
 
     if args["create"] and args['file']:
         if os.path.exists(args['file']):
