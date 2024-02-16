@@ -29,16 +29,22 @@ print_help() {
 PASSWORD_FILE="passwords.enc"
 
 encrypt_file() {
+    if [[ ! -f passwords.txt ]]; then
+        return 1
+    fi
     openssl enc -aes-256-cbc -salt -pbkdf2 -iter 10000 -in passwords.txt -out $PASSWORD_FILE -k "$ENCRYPTION_KEY"
     shred -u passwords.txt
 }
 
 decrypt_file() {
+    if [[ ! -f $PASSWORD_FILE ]]; then
+        return 1
+    fi
     openssl enc -d -aes-256-cbc -pbkdf2 -iter 10000 -in $PASSWORD_FILE -out passwords.txt -k "$ENCRYPTION_KEY" 2>/dev/null
     if [ $? -ne 0 ]; then
         echo "Podano złe hasło główne."
         shred -u passwords.txt 2>/dev/null
-        exit 1
+        return 1
     fi
 }
 
@@ -49,13 +55,13 @@ export_passwords() {
     if [[ -z $export_file ]]; then
         echo "Nazwa pliku do którego mają być eksportowane hasła nie może być pusta."
         encrypt_file
-        return
+        return 1
     fi
     
     if [[ ! "$export_file" =~ \.txt$ ]]; then
         echo "Plik do którego eskportuje się hasła musi być w formacie tekstowym (.txt)"
         encrypt_file
-        return
+        return 1
     fi
     
     if [[ -e "$export_file" ]]; then
@@ -66,11 +72,11 @@ export_passwords() {
                     cp "passwords.txt" "$export_file"
                     encrypt_file
                     echo "Nadpisano plik '$export_file' i eksportowano hasła"
-                    return;;
+                    return 1;;
                 [Nn]* )
                     encrypt_file
                     echo "Anulowano eksportowanie pliku."
-                    return;;
+                    return 1;;
                 * ) echo "Odpowiedz 't' lub 'n'.";;
             esac
         done
@@ -87,19 +93,19 @@ import_passwords() {
     if [[ -z $import_file ]]; then
         echo "Nazwa pliku z którego mają być importowane hasła nie może być pusta."
         encrypt_file
-        return
+        return 1
     fi
 
     if [[ ! "$import_file" =~ \.txt$ ]]; then
         echo "Plik z którego importuje się hasła musi być w formacie tekstowym (.txt)"
         encrypt_file
-        return
+        return 1
     fi
     
     if [[ ! -e "$PWD/$import_file" ]]; then
         echo "Nie można znaleźć pliku '$import_file' w bieżącym katalogu."
         encrypt_file
-        return
+        return 1
     fi
 
     cp "$PWD/$import_file" "passwords.txt"
@@ -125,7 +131,7 @@ show_passwords_with_borders() {
         echo ""
         echo "Brak zapisanych haseł."
         encrypt_file
-        return
+        return 1
     fi
     echo " _______________________________________________________________________________________ "
     echo "| ID | Serwis              | Adres                  | Login           | Hasło           |"
@@ -148,21 +154,21 @@ add_password() {
     if [[ -z $service && -z $address ]]; then
         echo "Musisz podać przynajmniej jedną informację: nazwę własną serwisu lub adres."
         encrypt_file
-        return
+        return 1
     fi
 
     if [[ -z $service ]]; then
         if ! [[ $address =~ ^[a-zA-Z0-9.-]+\.(pl|org|com|eu)$ ]]; then
             echo "Adres serwisu jest w nieprawidłowym formacie (musi mieć kropkę i końcówkę (pl, com, org lub eu))."
             encrypt_file
-            return
+            return 1
         fi
     elif ! [[ -z $service ]]; then
         if ! [[ -z $address ]]; then
             if ! [[ $address =~ ^[a-zA-Z0-9.-]+\.(pl|org|com|eu)$ ]]; then
                 echo "Adres serwisu jest w nieprawidłowym formacie (musi mieć kropkę i końcówkę (pl, com, org lub eu))."
                 encrypt_file
-                return
+                return 1
             fi
         fi
     fi
@@ -179,7 +185,7 @@ add_password() {
     if grep -q "^$service | $username |" passwords.txt || grep -q "^$address | $username |" passwords.txt; then
         echo "Konto o podanym loginie już istnieje dla podanego serwisu lub adresu."
         encrypt_file
-        return
+        return 1
     fi
 
     echo "Podaj hasło:"
@@ -188,7 +194,7 @@ add_password() {
     if [[ -z $username || -z $password ]]; then
         echo "Wszystkie pola muszą być wypełnione."
         encrypt_file
-        return
+        return 1
     fi
 
     new_id=$(( $(awk -F'|' 'END {print $1}' passwords.txt) + 1 ))
@@ -205,13 +211,13 @@ delete_password() {
     if [[ -z $id_to_delete ]]; then
         echo "ID nie może być puste."
         encrypt_file
-        return
+        return 1
     fi
 
     if ! grep -qE "^$id_to_delete \| " passwords.txt; then
         echo "Brak wpisu o podanym ID: $id_to_delete"
         encrypt_file
-        return
+        return 1
     fi
 
     grep -v "^$id_to_delete |" passwords.txt > passwords.tmp
@@ -228,13 +234,13 @@ edit_password() {
     if [[ -z $id_to_edit ]]; then
         echo "ID nie może być puste."
         encrypt_file
-        return
+        return 1
     fi
 
     if ! grep -qE "^$id_to_edit \| " passwords.txt; then
         echo "Brak wpisu o podanym ID: $id_to_edit"
         encrypt_file
-        return
+        return 1
     fi
 
     old_entry=$(grep "^$id_to_edit \| " passwords.txt)
@@ -248,7 +254,7 @@ edit_password() {
     if [[ -z $new_password ]]; then
         echo "Pole nowego hasła musi być wypełnione."
         encrypt_file
-        return
+        return 1
     fi
 
 
