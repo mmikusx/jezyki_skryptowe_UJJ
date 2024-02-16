@@ -1,7 +1,7 @@
-import argparse
 import json
 import os
 import random
+import sys
 
 class Quiz:
     def __init__(self, questions=None):
@@ -26,9 +26,6 @@ class Quiz:
 
 
     def save_to_file(self, filename):
-        if not filename.endswith('.json'):
-            print("Plik musi być w formacie .json")
-            return
         try:
             with open(filename, 'w') as file:
                 json.dump(self.questions, file)
@@ -38,9 +35,6 @@ class Quiz:
 
 
     def load_from_file(self, filename):
-        if not filename.endswith('.json'):
-            print("Plik musi być w formacie .json.")
-            return False
         if not os.path.exists(filename):
             print(f"Nie można otworzyć pliku {filename}, ponieważ nie istnieje.")
             return False
@@ -135,41 +129,55 @@ def print_help():
     - Łatwe: 1 punkt
     - Średnie: 2 punkty
     - Trudne: 3 punkty
-    Punktacja ta jest przydzielana za każde poprawnie udzieloną odpowiedź.
+    Punktacja ta jest przydzielana za każdą poprawnie udzieloną odpowiedź.
     """
     print(help_text)
-    exit(0)
+    exit()
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Generator Quizów - twórz i przeprowadzaj quizy.", add_help=False)
-    parser.add_argument("-h", "--help", action="store_true", help="Pokazuje pomoc.")
-    parser.add_argument("-c", "--create", action="store_true", help="Tworzenie nowego quizu.")
-    parser.add_argument("-f", "--file", type=str, help="Nazwa pliku do zapisu/odczytu quizu.")
-    parser.add_argument("-r", "--run", action="store_true", help="Przeprowadzanie quizu z pliku.")
-    parser.add_argument("-e", "--edit", action="store_true", help="Dodawanie/usuwanie pytań do/z istniejącego quizu.")
+    args = {"create": False, "file": None, "run": False, "edit": False}
+    argv = sys.argv[1:]
 
-    args, unknown = parser.parse_known_args()
+    if "-h" in argv or "--help" in argv:
+        print_help()
 
-    if unknown:
-        print(f"Nierozpoznane flagi: {', '.join(unknown)}")
-        print("Aby uzyskać pomoc, użyj flagi -h/--help")
-        exit(1)
+    if "-c" in argv or "--create" in argv:
+        args["create"] = True
+
+    if "-r" in argv or "--run" in argv:
+        args["run"] = True
+
+    if "-e" in argv or "--edit" in argv:
+        args["edit"] = True
+
+    if "-f" in argv or "--file" in argv:
+        file_index = argv.index("-f") + 1
+        if file_index < len(argv):
+            args['file'] = argv[file_index]
+            next_arg = file_index + 1
+            if next_arg < len(argv) and not argv[next_arg].startswith("-"):
+                print("Po opcji -f powinien być podany dokładnie jeden plik.")
+                exit(1)
+            if not args['file'].endswith('.json'):
+                print("Plik musi być w formacie .json.")
+                exit(1)
+        else:
+            print("Opcja -f wymaga podania nazwy pliku.")
+            exit(1)
 
     return args
+
 
 
 def main():
     args = parse_args()
 
-    if args.help:
-        print_help()
-        return
-
     quiz = Quiz()
-    if args.create and args.file:
-        if os.path.exists(args.file):
-            print(f"Plik '{args.file}' już istnieje. Użyj opcji -e do edycji istniejącego quizu.")
+
+    if args["create"] and args['file']:
+        if os.path.exists(args['file']):
+            print(f"Plik '{args['file']}' już istnieje. Użyj opcji -e do edycji istniejącego quizu.")
         else:
             while True:
                 while True:
@@ -190,12 +198,12 @@ def main():
                 quiz.add_question(question, options, correct_answer, difficulty)
                 if input("Czy chcesz dodać kolejne pytanie? (t/n): ").lower() != 't':
                     break
-            quiz.save_to_file(args.file)
-    elif args.run and args.file:
-        if quiz.load_from_file(args.file):
+            quiz.save_to_file(args['file'])
+    elif args["run"] and args['file']:
+        if quiz.load_from_file(args['file']):
             quiz.run_quiz()
-    elif args.edit and args.file:
-        if quiz.load_from_file(args.file):
+    elif args["edit"] and args['file']:
+        if quiz.load_from_file(args['file']):
             while True:
                 choice = input("""Dostępne opcję:
             d - dodaj pytanie
@@ -235,7 +243,7 @@ Wybierz opcję: """)
                         except ValueError:
                             print("Wprowadzono niepoprawny indeks. Operacja usunięcia anulowana.")
                 elif choice.lower() == 'z':
-                    quiz.save_to_file(args.file)
+                    quiz.save_to_file(args['file'])
                     break
                 else:
                     print("Wybrano opcje, która nie istnieje.")
